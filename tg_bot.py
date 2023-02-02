@@ -1,7 +1,4 @@
 import logging
-import random
-import os
-import re
 import redis
 import json
 
@@ -11,6 +8,8 @@ from telegram.ext import Updater, CallbackContext, CommandHandler, MessageHandle
 from functools import partial
 
 from logger import TelegramLogHandler
+
+from question import get_question
 
 
 logger = logging.getLogger('Logger')
@@ -22,7 +21,6 @@ def main():
     env = Env()
     env.read_env()
     TELEGRAM_TOKEN = env('TELEGRAM_TOKEN')
-    # PROJECT_ID = env('PROJECT_ID')
     TELEGRAM_TOKEN_LOGS = env('TELEGRAM_TOKEN_LOGS')
     TG_CHAT_ID = env('TG_CHAT_ID')
     REDIS_HOST = env('REDIS_HOST')
@@ -59,24 +57,6 @@ def main():
     updater.start_polling()
     updater.idle()
 
-def get_question():
-    questions = []
-    random_file = random.choice(os.listdir('quiz-questions'))
-    with open(f'quiz-questions/{random_file}', 'r', encoding='KOI8-R') as file:
-        file_content = file.read()
-        for section in file_content.split("\n\n\n"):
-            for section_part in section.split("\n\n"):
-                sect_parts = section_part.split("\n")
-                if re.match(r'Вопрос \d+:', sect_parts[0]):
-                    sect_parts.pop(0)
-                    question = {'Вопрос': ''.join(sect_parts)}
-                if re.match(r'Ответ:', sect_parts[0]):
-                    sect_parts.pop(0)
-                    question.update({'Ответ': ''.join(sect_parts)})
-                    questions.append(question)
-
-    return random.choice(questions)
-
 
 def start(update: Update, context: CallbackContext):
     custom_keyboard = [['Новый вопрос', 'Сдаться'], 
@@ -96,10 +76,14 @@ def question(update: Update, context: CallbackContext, redis_conn):
 def answer(update: Update, context: CallbackContext, redis_conn):
     answer = json.loads(redis_conn.get(update.effective_chat.id))['Ответ']
     if update.message.text == answer:
-        context.bot.send_message(chat_id=update.effective_chat.id, text='Правильно! Поздравляю! Для следующего вопроса нажми «Новый вопрос»')
+        context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text='Правильно! Поздравляю! Для следующего вопроса нажми «Новый вопрос»')
         return QUESTION
     else:
-        context.bot.send_message(chat_id=update.effective_chat.id, text=f'Неправильно :( Попробуешь еще раз? (Правильный ответ: {answer})')
+        context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=f'Неправильно :( Попробуешь еще раз? (Правильный ответ: {answer})')
         return ANSWER
 
 
