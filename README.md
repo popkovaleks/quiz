@@ -12,6 +12,9 @@ TELEGRAM_TOKEN_LOGS=<бот для отправки логов>
 TG_CHAT_ID=<идентификатор пользователя телеграма для получения логов>
 REDIS_HOST=<адрес Redis>
 REDIS_PASS=<пароль к Redis>
+REDIS_PORT=<порт Redis>
+QUESTIONS_DIR=<директория с файлами вопросов>
+QUESTIONS_FILE=<опционально, если хочется задать конкретный файл>
 ```
 
 ## Токен telegram-бота
