@@ -63,7 +63,8 @@ def main():
     redis_host = env('REDIS_HOST')
     redis_pass = env('REDIS_PASS')
     redis_port = env('REDIS_PORT')
-    questions_file = env.str('QUESTIONS_FILE', default=random.choice(os.listdir('quiz-questions')))
+    questions_dir = env('QUESTIONS_DIR')
+    questions_file = env.str('QUESTIONS_FILE', default=random.choice(os.listdir(questions_dir)))
     redis_conn = redis.StrictRedis(
             host=redis_host,
             port=redis_port,

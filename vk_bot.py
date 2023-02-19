@@ -67,7 +67,8 @@ if __name__ == "__main__":
     redis_pass = env('REDIS_PASS')
     redis_port = env('REDIS_PORT')
     vk_api_token = env('VK_API_TOKEN')
-    questions_file = env.str('QUESTIONS_FILE', default=random.choice(os.listdir('quiz-questions')))
+    questions_dir = env('QUESTIONS_DIR')
+    questions_file = env.str('QUESTIONS_FILE', default=random.choice(os.listdir(questions_dir)))
     questions = parse_questions(questions_file)
 
     redis_conn = redis.StrictRedis(
