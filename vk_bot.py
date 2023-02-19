@@ -69,7 +69,7 @@ if __name__ == "__main__":
     vk_api_token = env('VK_API_TOKEN')
     questions_dir = env('QUESTIONS_DIR')
     questions_file = env.str('QUESTIONS_FILE', default=random.choice(os.listdir(questions_dir)))
-    questions = parse_questions(questions_file)
+    questions = parse_questions(questions_dir, questions_file)
 
     redis_conn = redis.StrictRedis(
             host=redis_host,

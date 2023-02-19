@@ -3,9 +3,9 @@ import re
 import os
 
 
-def parse_questions(questions_file):
+def parse_questions(questions_dir, questions_file):
     questions = []
-    with open(f'quiz-questions/{questions_file}', 'r', encoding='KOI8-R') as file:
+    with open(f'{questions_dir}/{questions_file}', 'r', encoding='KOI8-R') as file:
         file_content = file.read()
         for section in file_content.split("\n\n\n"):
             for section_part in section.split("\n\n"):

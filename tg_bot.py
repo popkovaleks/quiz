@@ -76,7 +76,7 @@ def main():
     logger.setLevel(logging.INFO)
     logger.addHandler(TelegramLogHandler(bot, tg_chat_id))
 
-    questions = parse_questions(questions_file)
+    questions = parse_questions(questions_dir, questions_file)
 
     updater = Updater(telegram_token)
     dispatcher = updater.dispatcher
