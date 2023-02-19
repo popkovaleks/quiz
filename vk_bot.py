@@ -2,20 +2,13 @@ import random
 import vk_api as vk
 import json
 import redis
+import os
 
 from vk_api.longpoll import VkLongPoll, VkEventType
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from environs import Env
 
-from question import get_question
-
-
-def echo(event, vk_api):
-    vk_api.messages.send(
-    user_id=event.user_id,
-    message=event.text,
-    random_id=random.randint(1,1000)
-        )
+from question import get_question, parse_questions
 
 
 def start(event, vk_api):
@@ -32,8 +25,8 @@ def start(event, vk_api):
     )
 
 
-def question(event, vk_api, redis_conn):
-    question_to_send = get_question()
+def send_question(event, vk_api, redis_conn, questions):
+    question_to_send = get_question(questions)
     redis_conn.set(event.user_id, json.dumps(question_to_send))
     vk_api.messages.send(
         user_id=event.user_id,
@@ -48,10 +41,10 @@ def give_up(event, vk_api, redis_conn):
         random_id=random.randint(1,1000),
         message=f'Правильный ответ: {answer}'
     )
-    question(event, vk_api, redis_conn)
+    send_question(event, vk_api, redis_conn)
 
 
-def answer(event, vk_api, redis_conn):
+def check_answer(event, vk_api, redis_conn):
     answer = json.loads(redis_conn.get(event.user_id))['Ответ']
     if event.text == answer:
         vk_api.messages.send(
@@ -70,18 +63,21 @@ def answer(event, vk_api, redis_conn):
 if __name__ == "__main__":
     env = Env()
     env.read_env()
-    REDIS_HOST = env('REDIS_HOST')
-    REDIS_PASS = env('REDIS_PASS')
-    VK_API_TOKEN = env('VK_API_TOKEN')
+    redis_host = env('REDIS_HOST')
+    redis_pass = env('REDIS_PASS')
+    redis_port = env('REDIS_PORT')
+    vk_api_token = env('VK_API_TOKEN')
+    questions_file = env.str('QUESTIONS_FILE', default=random.choice(os.listdir('quiz-questions')))
+    questions = parse_questions(questions_file)
 
     redis_conn = redis.StrictRedis(
-            host=REDIS_HOST,
-            port=11386,
+            host=redis_host,
+            port=redis_port,
             db=0,
-            password=REDIS_PASS
+            password=redis_pass
         )
 
-    vk_session = vk.VkApi(token=VK_API_TOKEN)
+    vk_session = vk.VkApi(token=vk_api_token)
     vk_api = vk_session.get_api()
     longpoll = VkLongPoll(vk_session)
 
@@ -90,10 +86,10 @@ if __name__ == "__main__":
         if event.type == VkEventType.MESSAGE_NEW and event.to_me and event.text=='/start':
             start(event, vk_api)
         elif event.type == VkEventType.MESSAGE_NEW and event.to_me and event.text=='Новый вопрос':
-            question(event, vk_api, redis_conn)
+            send_question(event, vk_api, redis_conn, questions)
         elif event.type == VkEventType.MESSAGE_NEW and event.to_me and event.text=='Сдаться':
             give_up(event, vk_api, redis_conn)
         elif event.type == VkEventType.MESSAGE_NEW and event.to_me:
-            answer(event, vk_api, redis_conn)
+            check_answer(event, vk_api, redis_conn)
         
 

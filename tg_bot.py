@@ -1,6 +1,8 @@
 import logging
 import redis
 import json
+import random
+import os
 
 from environs import Env
 from telegram import Update, Bot, ReplyKeyboardMarkup
@@ -9,53 +11,12 @@ from functools import partial
 
 from logger import TelegramLogHandler
 
-from question import get_question
+from question import get_question, parse_questions
 
 
 logger = logging.getLogger('Logger')
 
 QUESTION, ANSWER, GIVE_UP, SCORE = range(4)
-
-
-def main():
-    env = Env()
-    env.read_env()
-    TELEGRAM_TOKEN = env('TELEGRAM_TOKEN')
-    TELEGRAM_TOKEN_LOGS = env('TELEGRAM_TOKEN_LOGS')
-    TG_CHAT_ID = env('TG_CHAT_ID')
-    REDIS_HOST = env('REDIS_HOST')
-    REDIS_PASS = env('REDIS_PASS')
-    redis_conn = redis.StrictRedis(
-            host=REDIS_HOST,
-            port=11386,
-            db=0,
-            password=REDIS_PASS
-        )
-    bot = Bot(token=TELEGRAM_TOKEN_LOGS)
-
-    logger.setLevel(logging.INFO)
-    logger.addHandler(TelegramLogHandler(bot, TG_CHAT_ID))
-
-    updater = Updater(TELEGRAM_TOKEN)
-    dispatcher = updater.dispatcher
-    
-    conversation = ConversationHandler(
-        entry_points=[CommandHandler('start', start)],
-        states={
-            QUESTION:[
-                MessageHandler(Filters.regex('Новый вопрос'), partial(question, redis_conn=redis_conn)),
-                ],
-            ANSWER:[
-                MessageHandler(Filters.regex('Сдаться'), partial(give_up, redis_conn=redis_conn)),
-                MessageHandler(Filters.text & ~Filters.command, partial(answer, redis_conn=redis_conn)),
-                ]
-        },
-        fallbacks=[CommandHandler('start', start)]
-    )
-    
-    dispatcher.add_handler(conversation)
-    updater.start_polling()
-    updater.idle()
 
 
 def start(update: Update, context: CallbackContext):
@@ -66,14 +27,14 @@ def start(update: Update, context: CallbackContext):
     return QUESTION
     
 
-def question(update: Update, context: CallbackContext, redis_conn):
-    question_to_send = get_question()
+def send_question(update: Update, context: CallbackContext, redis_conn, questions):
+    question_to_send = get_question(questions)
     redis_conn.set(update.effective_chat.id, json.dumps(question_to_send))
     context.bot.send_message(chat_id=update.effective_chat.id, text=question_to_send['Вопрос'])
     return ANSWER
 
 
-def answer(update: Update, context: CallbackContext, redis_conn):
+def check_answer(update: Update, context: CallbackContext, redis_conn):
     answer = json.loads(redis_conn.get(update.effective_chat.id))['Ответ']
     if update.message.text == answer:
         context.bot.send_message(
@@ -90,7 +51,52 @@ def answer(update: Update, context: CallbackContext, redis_conn):
 def give_up(update: Update, context: CallbackContext, redis_conn):
     answer = json.loads(redis_conn.get(update.effective_chat.id))['Ответ']
     context.bot.send_message(chat_id=update.effective_chat.id, text=f'Правильный ответ: {answer}')
-    question(update, context, redis_conn)
+    send_question(update, context, redis_conn)
+
+
+def main():
+    env = Env()
+    env.read_env()
+    telegram_token = env('TELEGRAM_TOKEN')
+    telegram_token_logs = env('TELEGRAM_TOKEN_LOGS')
+    tg_chat_id = env('TG_CHAT_ID')
+    redis_host = env('REDIS_HOST')
+    redis_pass = env('REDIS_PASS')
+    redis_port = env('REDIS_PORT')
+    questions_file = env.str('QUESTIONS_FILE', default=random.choice(os.listdir('quiz-questions')))
+    redis_conn = redis.StrictRedis(
+            host=redis_host,
+            port=redis_port,
+            db=0,
+            password=redis_pass
+        )
+    bot = Bot(token=telegram_token_logs)
+
+    logger.setLevel(logging.INFO)
+    logger.addHandler(TelegramLogHandler(bot, tg_chat_id))
+
+    questions = parse_questions(questions_file)
+
+    updater = Updater(telegram_token)
+    dispatcher = updater.dispatcher
+    
+    conversation = ConversationHandler(
+        entry_points=[CommandHandler('start', start)],
+        states={
+            QUESTION:[
+                MessageHandler(Filters.regex('Новый вопрос'), partial(send_question, redis_conn=redis_conn, questions=questions)),
+                ],
+            ANSWER:[
+                MessageHandler(Filters.regex('Сдаться'), partial(give_up, redis_conn=redis_conn)),
+                MessageHandler(Filters.text & ~Filters.command, partial(check_answer, redis_conn=redis_conn)),
+                ]
+        },
+        fallbacks=[CommandHandler('start', start)]
+    )
+    
+    dispatcher.add_handler(conversation)
+    updater.start_polling()
+    updater.idle()
 
 
 if __name__ == "__main__":

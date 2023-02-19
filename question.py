@@ -2,10 +2,10 @@ import random
 import re
 import os
 
-def get_question():
+
+def parse_questions(questions_file):
     questions = []
-    random_file = random.choice(os.listdir('quiz-questions'))
-    with open(f'quiz-questions/{random_file}', 'r', encoding='KOI8-R') as file:
+    with open(f'quiz-questions/{questions_file}', 'r', encoding='KOI8-R') as file:
         file_content = file.read()
         for section in file_content.split("\n\n\n"):
             for section_part in section.split("\n\n"):
@@ -17,5 +17,8 @@ def get_question():
                     sect_parts.pop(0)
                     question.update({'Ответ': ''.join(sect_parts)})
                     questions.append(question)
+    return questions
 
+
+def get_question(questions):
     return random.choice(questions)
