@@ -8,7 +8,7 @@ from vk_api.longpoll import VkLongPoll, VkEventType
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from environs import Env
 
-from question import get_question, parse_questions
+from question import parse_questions
 
 
 def start(event, vk_api):
@@ -26,7 +26,7 @@ def start(event, vk_api):
 
 
 def send_question(event, vk_api, redis_conn, questions):
-    question_to_send = get_question(questions)
+    question_to_send = random.choice(questions)
     redis_conn.set(event.user_id, json.dumps(question_to_send))
     vk_api.messages.send(
         user_id=event.user_id,

@@ -18,7 +18,3 @@ def parse_questions(questions_dir, questions_file):
                     question.update({'Ответ': ''.join(sect_parts)})
                     questions.append(question)
     return questions
-
-
-def get_question(questions):
-    return random.choice(questions)

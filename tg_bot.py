@@ -11,7 +11,7 @@ from functools import partial
 
 from logger import TelegramLogHandler
 
-from question import get_question, parse_questions
+from question import parse_questions
 
 
 logger = logging.getLogger('Logger')
@@ -28,7 +28,7 @@ def start(update: Update, context: CallbackContext):
     
 
 def send_question(update: Update, context: CallbackContext, redis_conn, questions):
-    question_to_send = get_question(questions)
+    question_to_send = random.choice(questions)
     redis_conn.set(update.effective_chat.id, json.dumps(question_to_send))
     context.bot.send_message(chat_id=update.effective_chat.id, text=question_to_send['Вопрос'])
     return ANSWER
